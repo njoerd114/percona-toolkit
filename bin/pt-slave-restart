@@ -5282,7 +5282,7 @@ sub watch_server {
 
             my $gtid_next = $gtid_exec_last + $skipped;
             if ( $o->get('rds') ){
-               my $sql = "CALL mysql.rds_skip_transaction_with_gtid('$gtid_uuid:$gtid_next')"
+               my $sql = "CALL mysql.rds_skip_transaction_with_gtid('$gtid_uuid:$gtid_next')";
                PTDEBUG && _d($sql);
                my $sth = $dbh->prepare($sql);
                $sth->execute();
