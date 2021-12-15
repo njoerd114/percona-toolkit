@@ -5279,17 +5279,29 @@ sub watch_server {
          # Set the sessions next gtid, write an empty transaction
          my $skipped = 0;
          while ( $skipped++ < $o->get('skip-count') ) {
-            my $gtid_next = $gtid_exec_last + $skipped;
-            my $sql       = "SET GTID_NEXT='$gtid_uuid:$gtid_next'";
-            PTDEBUG && _d($sql);
-            my $sth = $dbh->prepare($sql);
-            $sth->execute();
-            $dbh->begin_work();
-            $dbh->commit();
-         }
 
-         # Set the session back to the automatically generated GTID_NEXT.
-         $dbh->do("SET GTID_NEXT='AUTOMATIC'");
+            my $gtid_next = $gtid_exec_last + $skipped;
+            if ( $o->get('rds') ){
+               my $sql = "CALL mysql.rds_skip_transaction_with_gtid('$gtid_uuid:$gtid_next')"
+               PTDEBUG && _d($sql);
+               my $sth = $dbh->prepare($sql);
+               $sth->execute();
+               $dbh->begin_work();
+               $dbh->commit();
+               # Set the session back to the automatically generated GTID_NEXT.
+               $dbh->do("CALL mysql.rds_start_replication()");
+            }
+            else {
+               my $sql = "SET GTID_NEXT='$gtid_uuid:$gtid_next'";
+               PTDEBUG && _d($sql);
+               my $sth = $dbh->prepare($sql);
+               $sth->execute();
+               $dbh->begin_work();
+               $dbh->commit();
+               # Set the session back to the automatically generated GTID_NEXT.
+               $dbh->do("SET GTID_NEXT='AUTOMATIC'");
+            }
+         }
       },
       repair_table => sub {
          my ( $stat, $dbh ) = @_;
@@ -5778,6 +5790,11 @@ Port number to use for connection.
 short form: -q
 
 Suppresses normal output (disables L<"--verbose">).
+
+=item --rds
+
+Denotes the instance in question is on Amazon RDS and modifies the necessary commands.
+NOTE: this works with GTIDS only
 
 =item --recurse
 
